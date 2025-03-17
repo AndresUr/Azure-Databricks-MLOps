@@ -55,11 +55,11 @@ jobs:
     # Checkout code
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     # Show the environment variables for debugging
     - name: Display Environment Variable
-      uses: azure/powershell@v1
+      uses: azure/powershell@v2
       with:
         inlineScript: |
           dir env:
@@ -87,7 +87,7 @@ jobs:
     steps:
     # Show the environment variables for debugging
     - name: Display Environment Variable
-      uses: azure/powershell@v1
+      uses: azure/powershell@v2
       with:
         inlineScript: |
           dir env:
@@ -95,7 +95,7 @@ jobs:
 
     # Download Artifact: ARM-Templates
     - name: 'Download Artifact: ARM-Templates' 
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: 'ARM-Templates'
         path: ${{ github.workspace }}/ARM-Templates
@@ -148,7 +148,7 @@ jobs:
     steps:
     # Show the environment variables for debugging
     - name: Display Environment Variable
-      uses: azure/powershell@v1
+      uses: azure/powershell@v2
       with:
         inlineScript: |
           dir env:
@@ -156,7 +156,7 @@ jobs:
 
     # Download Artifact: ARM-Templates
     - name: 'Download Artifact: ARM-Templates' 
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: 'ARM-Templates'
         path: ${{ github.workspace }}/ARM-Templates
@@ -210,7 +210,7 @@ jobs:
     steps:
     # Show the environment variables for debugging
     - name: Display Environment Variable
-      uses: azure/powershell@v1
+      uses: azure/powershell@v2
       with:
         inlineScript: |
           dir env:
@@ -218,7 +218,7 @@ jobs:
 
     # Download Artifact: ARM-Templates
     - name: 'Download Artifact: ARM-Templates' 
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: 'ARM-Templates'
         path: ${{ github.workspace }}/ARM-Templates

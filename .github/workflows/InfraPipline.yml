@@ -67,7 +67,7 @@ jobs:
 
     # Publish Artifact: ARM-Templates
     - name: 'Publish Artifact: ARM-Templates' 
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: 'ARM-Templates'
         path: '${{ github.workspace }}/ARM-Templates'

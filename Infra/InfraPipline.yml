@@ -1,0 +1,294 @@
+name: Databricks-Infra-Deploy
+
+
+# Manual trigger with parameters
+on:
+#Indica que el trigger se ejecutara manualemnte
+  workflow_dispatch:
+    inputs:
+      # This resource group for the Databricks workspace and KeyVault
+      RESOURCE_GROUP:
+        description: 'Resource Group Name'
+        required: true
+        default: 'Databricks-MyProject'
+
+      # The Azure region to which to deploy your resources
+      LOCATION:
+        description: 'Azure Region'
+        required: true
+        default: 'EastUS2'
+
+      # This is the name of your Azure Databricks resource
+      WORKSPACE_NAME:
+        description: 'Databricks workspace name'
+        required: true
+        default: 'Databricks-MyProject'
+
+      # This is a KeyVault for holding the Service Principal to make Databricks API calls and to hold Databricks KeyVault backed Secrets
+      KEY_VAULT_NAME:
+        description: 'KeyVault name'
+        required: true
+        default: 'KeyVault-MyProject'
+
+      # This is a KeyVault for holding the Service Principal to make Databricks API calls and to hold Databricks KeyVault backed Secrets
+      SUBSCRIPTION_ID:
+        description: 'Azure Subscription Id'
+        required: true
+        default: 'd8a72ab0-5ad8-44ff-8a8d-1f371fee5e77'
+
+      # Inialize the system
+      # Note: We only want to run the KeyVault ARM template once.  If you keep re-running, then you will OVERWRITE your values
+      MODE:
+        description: 'Deployment Mode (Databricks or Initialize-KeyVault)'
+        required: true
+        default: 'Databricks'
+
+
+jobs:
+  #############################################################
+  # Builds the code
+  # Currently this is not building and JAR files, but you would do that here
+  # This is packaging up the files from Git to the Artifacts files
+  #############################################################
+  Build:
+    runs-on: ubuntu-latest
+
+    # Checkout code
+    #con uses: actions/checkout@v4 descarga todo el codigo del repo a la maquina virtual donde ejecuta githubactions
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Show the environment variables for debugging
+    #uses: azure/powershell@v2 es para ejecutar comandos de powershell en la maquina virtual, indica que este paso
+    #usara powershell en azure
+    #con el with se define lo que se enviara a la accion de github
+    #inlineScript: |
+    #     dir env:
+    # con esto se ejecuta el comando dir env: en la maquina virtual el cual muestra las variables de entorno
+    # Lista todas las variables de entorno disponibles en la máquina virtual.
+    
+    # Ejecuta un script de PowerShell en GitHub Actions.
+    #Lista todas las variables de entorno disponibles con dir env:.
+    # Útil para depuración y diagnóstico.
+    # Requiere Azure PowerShell (Az Module), versión 3.1.0.
+
+    - name: Display Environment Variable
+      uses: azure/powershell@v2
+      with:
+        inlineScript: |
+          dir env:
+        azPSVersion: '3.1.0'
+
+    # Publish Artifact: ARM-Templates
+    #uses: actions/upload-artifact@v4 es para subir un archivo a la maquina virtual donde se ejecuta githubactions
+    #actions/upload-artifact es una acción oficial de GitHub que almacena archivos en GitHub Actions como artefactos
+    #path : es la ubicacion de los arquivos que se subiran a la maquina virtual
+    #name: es el nombre del archivo que se subira a la maquina virtual este esta en la carpeta ARM-Templates del repositorio
+    #con el ${{ github.workspace }} es la carpeta principa donmde git clona el repositorio
+    - name: 'Publish Artifact: ARM-Templates' 
+      uses: actions/upload-artifact@v4
+      with:
+        name: 'ARM-Templates'
+        path: '${{ github.workspace }}/ARM-Templates'
+                      
+
+#############################################################
+# Deploy to Dev
+#############################################################
+  # definimos un job llamado DEV
+  Dev:
+    needs: Build # este job indica que depende de otro job llamado Build
+    runs-on: ubuntu-latest #Especifica el sistema operativo donde se ejecutará el job, en este caso, Ubuntu en su versión más reciente.
+    env: # Se dfinen las variables de entorno para el job DEV
+      resourceGroupName: '${{ github.event.inputs.RESOURCE_GROUP }}-Dev'
+      databricksWorkspaceName: '${{ github.event.inputs.WORKSPACE_NAME }}-Dev'
+      keyVaultName: '${{ github.event.inputs.KEY_VAULT_NAME }}-Dev'
+
+    steps:
+    # Show the environment variables for debugging
+    # este paso ejecuta script de powershel en azure para mostrar variables de entorno configuradas
+    #dir env: → Muestra todas las variables de entorno disponibles en la sesión.
+    #azPSVersion: '3.1.0' → Especifica la versión de Azure PowerShell que se usará.
+    #Ayuda a depurar problemas mostrando los valores actuales de las variables de entorno en los logs de ejecución.
+    - name: Display Environment Variable
+      uses: azure/powershell@v2 #hell@v2 es para ejecutar comandos de powershell en la maquina virtual, este paso ejecuta script de powershel en azure para mostrar variables de entorno configuradas
+      with:
+        inlineScript: |  #Permite escribir un script en línea que se ejecutará en PowerShell.              
+          dir env:              
+        azPSVersion: '3.1.0'        
+
+    
+    # Download Artifact: ARM-Templates
+    #Descarga un artefacto llamado ARM-Templates y lo guarda en el directorio de trabajo de GitHub Actions.
+    #Los ARM Templates son plantillas de Azure Resource Manager usadas para desplegar infraestructura en Azure.
+    - name: 'Download Artifact: ARM-Templates' 
+      uses: actions/download-artifact@v4  #Usa la acción oficial de GitHub para descargar artefactos generados en pasos previos.
+      with:
+        name: 'ARM-Templates'
+        path: ${{ github.workspace }}/ARM-Templates  #Ubicación donde se guardará el artefacto dentro del workspace del runner.
+
+        
+    # Login to Azure
+    #Este paso autentica GitHub Actions en Azure para que los siguientes comandos puedan interactuar con los servicios de Azure.
+    - name: Login via Az module
+      uses: azure/login@v1.1  #→ Usa la acción oficial de GitHub para autenticar GitHub Actions en Azure.
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }} #Se pasa un secreto (AZURE_CREDENTIALS) almacenado en GitHub Secrets.
+        #este secreto contiene las credenciales para autenticar en azure, este archivo se creo en github action
+        # set this if you will be using PowerShell
+        # enable-AzPSSession: true 
+
+    # Deploy Databricks Workspace
+    #Este paso crea un grupo de recursos en Azure y despliega un Databricks Workspace utilizando una plantilla ARM.
+    - name: Deploy ARM Template (Databricks)
+      uses: azure/CLI@v1 #Usa la acción oficial de Azure para ejecutar comandos en Azure CLI (az).
+      # if: ${{ github.event.inputs.MODE == 'SKIP FOR TESTING' }}
+      with:
+        inlineScript: | # Indica que se ejecutará un script en línea con múltiples comandos, Crea grupo de recursos, utilzia la paltilla ARM con la infraestructura para crear un Databricks Workspace    
+          az group create --location "${{ github.event.inputs.LOCATION }}" --name "${{ env.resourceGroupName }}"
+          az deployment group create --resource-group ${{ env.resourceGroupName }} --template-file $GITHUB_WORKSPACE/ARM-Templates/azuredeploy.databricks.json --parameters @$GITHUB_WORKSPACE/ARM-Templates/parameters.databricks.json --parameters workspaceName="${{ env.databricksWorkspaceName }}"
+    
+    # Deploy Azure KeyVault
+    #Este paso crea un grupo de recursos en Azure y despliega un Azure KeyVault utilizando una plantilla ARM.
+    - name: Deploy ARM Template (KeyVault)
+      uses: azure/CLI@v1
+      if: ${{ github.event.inputs.MODE == 'Initialize-KeyVault' }}
+      with:
+        inlineScript: |
+          az group create --location "${{ github.event.inputs.LOCATION }}" --name "${{ env.resourceGroupName }}"
+          az deployment group create --resource-group ${{ env.resourceGroupName }} --template-file $GITHUB_WORKSPACE/ARM-Templates/azuredeploy.keyvault.json --parameters @$GITHUB_WORKSPACE/ARM-Templates/parameters.keyvault.json --parameters keyVaultName="${{ env.keyVaultName }}"
+    # Download KeyVault Secrets
+    #Este paso recupera los secretos de Azure Key Vault si el workflow está en modo Databricks.
+    - name: Download KeyVault Secrets
+      uses: Azure/get-keyvault-secrets@v1.0
+      if: ${{ github.event.inputs.MODE == 'Databricks' }}
+      with:
+        keyvault: ${{ env.keyVaultName }}
+        secrets: 'databricks-dev-ops-subscription-id,databricks-dev-ops-tenant-id,databricks-dev-ops-client-id,databricks-dev-ops-client-secret'
+      id: databricksSecretAction
+
+#############################################################
+# Deploy to QA
+#############################################################
+  QA:
+    needs: Dev
+    runs-on: ubuntu-latest
+    env:
+      resourceGroupName: '${{ github.event.inputs.RESOURCE_GROUP }}-QA'
+      databricksWorkspaceName: '${{ github.event.inputs.WORKSPACE_NAME }}-QA'
+      keyVaultName: '${{ github.event.inputs.KEY_VAULT_NAME }}-QA'
+
+    steps:
+    # Show the environment variables for debugging
+    - name: Display Environment Variable
+      uses: azure/powershell@v2
+      with:
+        inlineScript: |
+          dir env:
+        azPSVersion: '3.1.0'        
+
+    # Download Artifact: ARM-Templates
+    - name: 'Download Artifact: ARM-Templates' 
+      uses: actions/download-artifact@v4
+      with:
+        name: 'ARM-Templates'
+        path: ${{ github.workspace }}/ARM-Templates
+        
+    # Login to Azure
+    - name: Login via Az module
+      uses: azure/login@v1.1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        # set this if you will be using PowerShell
+        # enable-AzPSSession: true 
+
+    # Deploy Databricks Workspace
+    - name: Deploy ARM Template (Databricks)
+      uses: azure/CLI@v1
+      # if: ${{ github.event.inputs.MODE == 'SKIP FOR TESTING' }}
+      with:
+        inlineScript: |
+          az group create --location "${{ github.event.inputs.LOCATION }}" --name "${{ env.resourceGroupName }}"
+          az deployment group create --resource-group ${{ env.resourceGroupName }} --template-file $GITHUB_WORKSPACE/ARM-Templates/azuredeploy.databricks.json --parameters @$GITHUB_WORKSPACE/ARM-Templates/parameters.databricks.json --parameters workspaceName="${{ env.databricksWorkspaceName }}"
+    
+    # Deploy Azure KeyVault
+    - name: Deploy ARM Template (KeyVault)
+      uses: azure/CLI@v1
+      if: ${{ github.event.inputs.MODE == 'Initialize-KeyVault' }}
+      with:
+        inlineScript: |
+          az group create --location "${{ github.event.inputs.LOCATION }}" --name "${{ env.resourceGroupName }}"
+          az deployment group create --resource-group ${{ env.resourceGroupName }} --template-file $GITHUB_WORKSPACE/ARM-Templates/azuredeploy.keyvault.json --parameters @$GITHUB_WORKSPACE/ARM-Templates/parameters.keyvault.json --parameters keyVaultName="${{ env.keyVaultName }}"
+    
+    # Download KeyVault Secrets
+    - name: Download KeyVault Secrets
+      uses: Azure/get-keyvault-secrets@v1.0
+      if: ${{ github.event.inputs.MODE == 'Databricks' }}
+      with:
+        keyvault: ${{ env.keyVaultName }}
+        secrets: 'databricks-dev-ops-subscription-id,databricks-dev-ops-tenant-id,databricks-dev-ops-client-id,databricks-dev-ops-client-secret'
+      id: databricksSecretAction
+
+#############################################################
+# Deploy to Prod
+#############################################################
+  Prod:
+    needs: QA
+    runs-on: ubuntu-latest
+    env:
+      resourceGroupName: '${{ github.event.inputs.RESOURCE_GROUP }}-Prod'
+      databricksWorkspaceName: '${{ github.event.inputs.WORKSPACE_NAME }}-Prod'
+      keyVaultName: '${{ github.event.inputs.KEY_VAULT_NAME }}-Prod'
+
+    steps:
+    # Show the environment variables for debugging
+    - name: Display Environment Variable
+      uses: azure/powershell@v2
+      with:
+        inlineScript: |
+          dir env:
+        azPSVersion: '3.1.0'        
+
+    # Download Artifact: ARM-Templates
+    - name: 'Download Artifact: ARM-Templates' 
+      uses: actions/download-artifact@v4
+      with:
+        name: 'ARM-Templates'
+        path: ${{ github.workspace }}/ARM-Templates
+
+        
+  # Login to Azure
+    - name: Login via Az module
+      uses: azure/login@v1.1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        # set this if you will be using PowerShell
+        # enable-AzPSSession: true 
+
+  # Deploy Databricks Workspace
+    - name: Deploy ARM Template (Databricks)
+      uses: azure/CLI@v1
+      # if: ${{ github.event.inputs.MODE == 'SKIP FOR TESTING' }}
+      with:
+        inlineScript: |
+          az group create --location "${{ github.event.inputs.LOCATION }}" --name "${{ env.resourceGroupName }}"
+          az deployment group create --resource-group ${{ env.resourceGroupName }} --template-file $GITHUB_WORKSPACE/ARM-Templates/azuredeploy.databricks.json --parameters @$GITHUB_WORKSPACE/ARM-Templates/parameters.databricks.json --parameters workspaceName="${{ env.databricksWorkspaceName }}"
+   
+   # Deploy Azure KeyVault
+    - name: Deploy ARM Template (KeyVault)
+      uses: azure/CLI@v1
+      if: ${{ github.event.inputs.MODE == 'Initialize-KeyVault' }}
+      with:
+        inlineScript: |
+          az group create --location "${{ github.event.inputs.LOCATION }}" --name "${{ env.resourceGroupName }}"
+          az deployment group create --resource-group ${{ env.resourceGroupName }} --template-file $GITHUB_WORKSPACE/ARM-Templates/azuredeploy.keyvault.json --parameters @$GITHUB_WORKSPACE/ARM-Templates/parameters.keyvault.json --parameters keyVaultName="${{ env.keyVaultName }}"
+           
+     # Download KeyVault Secrets
+    - name: Download KeyVault Secrets
+      uses: Azure/get-keyvault-secrets@v1.0
+      if: ${{ github.event.inputs.MODE == 'Databricks' }}
+      with:
+        keyvault: ${{ env.keyVaultName }}
+        secrets: 'databricks-dev-ops-subscription-id,databricks-dev-ops-tenant-id,databricks-dev-ops-client-id,databricks-dev-ops-client-secret'
+      id: databricksSecretAction

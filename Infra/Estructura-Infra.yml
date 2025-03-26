@@ -1,0 +1,80 @@
+name: Databricks-Infra-Deploy
+#Permite ejecutar el workflow manualmente (workflow_dispatch) y definir parámetros
+# dinámicos como el grupo de recursos, la región y el modo de despliegue.
+#En GitHub Actions, la clave on: define los eventos que activan un workflow. 
+#En este caso, workflow_dispatch permite ejecutar el workflow bajo demanda, 
+#lo que es útil cuando necesitas un despliegue manual en lugar de activarlo automáticamente en cada push o pull request.
+on:
+  workflow_dispatch:
+    inputs:
+      RESOURCE_GROUP:
+      LOCATION:
+      WORKSPACE_NAME:
+      KEY_VAULT_NAME:
+      SUBSCRIPTION_ID:
+      MODE:
+
+#Definir los Jobs del workflow
+#Cada job representa una fase del despliegue.
+#El primer job es el de Build, que se encarga de clonar el repositorio, mostrar las variables de entorno y guardar las plantillas ARM como artefactos.
+#Clona el repositorio.
+#Muestra las variables de entorno para depuración.
+#Guarda las plantillas ARM como artefactos para usarlas en los siguientes jobs.
+jobs:
+  Build:
+  runs-on: ubuntu-latest
+  steps:
+    - Checkout código fuente  
+    - Mostrar variables de entorno para debugging  
+    - Publicar artefactos (plantillas ARM) 
+ 
+#############################################################
+# Deploy to Dev : #Job de Despliegue en Entorno de Desarrollo (Dev)     
+#Se ejecuta después del Build.
+#Descarga las plantillas ARM y realiza el despliegue en el entorno de Desarrollo (Dev).
+#Configura Azure Key Vault si es requerido.
+
+
+#############################################################
+  Dev:
+  needs: Build
+  runs-on: ubuntu-latest
+  env:
+    resourceGroupName: '${{ github.event.inputs.RESOURCE_GROUP }}-Dev'
+  steps:
+    - Descargar artefactos ARM  
+    - Iniciar sesión en Azure  
+    - Desplegar Databricks Workspace con una plantilla ARM   - crea grupo de recursos y despliega Databricks Workspace
+    - Desplegar KeyVault (si es necesario)   - crea grupo de recursos y despliega KeyVault
+    - Descargar secretos de KeyVault (si es necesario)   - descarga los secretos de KeyVault para usarlos en el despliegue de Databricks Workspace
+  
+#Se hace lo mismo para los entornos de QA y Prod.
+#############################################################
+# Deploy to QA
+#############################################################
+  QA:
+  needs: Dev
+  runs-on: ubuntu-latest
+  env:
+    resourceGroupName: '${{ github.event.inputs.RESOURCE_GROUP }}-QA'
+  steps:
+    - Descargar artefactos ARM  
+    - Iniciar sesión en Azure  
+    - Desplegar Databricks Workspace con una plantilla ARM  
+    - Desplegar KeyVault (si es necesario)  
+    - Descargar secretos de KeyVault (si es necesario) 
+
+#############################################################
+# Deploy to Prod
+#############################################################
+  Prod:
+  needs: QA
+  runs-on: ubuntu-latest
+  env:
+    resourceGroupName: '${{ github.event.inputs.RESOURCE_GROUP }}-Prod'
+  steps:
+    - Descargar artefactos ARM  
+    - Iniciar sesión en Azure  
+    - Desplegar Databricks Workspace con una plantilla ARM  
+    - Desplegar KeyVault (si es necesario)  
+    - Descargar secretos de KeyVault (si es necesario)  

@@ -1,0 +1,42 @@
+📌 Cómo funciona el flujo de trabajo en tu pipeline
+Cuando editas un notebook en Databricks (Dev) y haces un git push, el proceso sigue estos pasos:
+
+1️⃣ El notebook se guarda en el repositorio de GitHub
+
+* Cuando haces push desde Databricks, el notebook se sube al repositorio en GitHub.
+
+* Git no hace cambios automáticamente, tú debes hacer commit y push para registrar la actualización en el repo central.
+
+2️⃣ GitHub Actions detecta el push y ejecuta el pipeline
+
+* Como el pipeline está configurado para activarse en push a main, se ejecuta automáticamente.
+
+3️⃣ GitHub Actions despliega los cambios en Dev
+
+* Descarga los notebooks desde el repositorio (checkout).
+
+* Ejecuta el script deploy-notebooks.sh, que sobe los notebooks al workspace de Databricks-Dev.
+
+4️⃣ Si Dev es exitoso, los mismos notebooks se despliegan en QA y Prod
+
+* El pipeline está configurado para que QA dependa de Dev (needs: Dev).
+* Luego, Prod depende de QA (needs: QA).
+* Si Dev funciona bien, GitHub Actions ejecuta los mismos pasos en QA y Prod.
+
+📢 ¿Se actualiza automáticamente GitHub cuando editas un notebook en Databricks?
+No.
+🔹 Tienes que hacer commit y push manualmente en Git dentro de Databricks.
+🔹 Cuando haces push, el código se sube a GitHub y ahí se ejecuta el pipeline.
+
+✅ Resumen: Cómo se actualizan QA y Prod
+✔️ Haces cambios en el notebook en Databricks (Dev).
+✔️ Haces git commit y git push en Databricks para actualizar GitHub.
+✔️ GitHub ejecuta automáticamente el pipeline:
+
+Sube los notebooks al workspace de Databricks-Dev.
+
+Si Dev pasa sin errores, los mismos notebooks se despliegan en QA.
+
+Si QA pasa sin errores, se suben a Producción (Prod).
+
+🚀 Así, los cambios en Dev se replican automáticamente en QA y Prod sin intervención manual adicional.

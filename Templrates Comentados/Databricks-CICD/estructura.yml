@@ -1,0 +1,112 @@
+name: Databricks-CI-CD
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      GIT_NOTEBOOK_PATH:
+      NOTEBOOK_DEPLOYMENT_PATH:
+      RESOURCE_GROUP:
+      LOCATION:
+      WORKSPACE_NAME:
+      KEY_VAULT_NAME:
+      SUBSCRIPTION_ID:
+      MODE:
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+      - name: Display Environment Variable
+      - name: Publish Artifact: ARM-Templates
+      - name: Publish Artifact: Databricks-Clusters
+      - name: Publish Artifact: Databricks-Notebooks
+      - name: Publish Artifact: Databricks-Jobs
+      - name: Publish Artifact: Databricks-Init-Scripts
+      - name: Publish Artifact: Databricks-Deployment-Scripts
+
+  Dev:
+    needs: Build
+    runs-on: ubuntu-latest
+    env:
+      resourceGroupName:
+      databricksWorkspaceName:
+      keyVaultName:
+      NotebookDeploymentPath:
+      GitNotebookPath:
+    steps:
+      - name: Display Environment Variable
+      - name: Download Artifact: ARM-Templates
+      - name: Download Artifact: Databricks-Clusters
+      - name: Download Artifact: Databricks-Notebooks
+      - name: Download Artifact: Databricks-Jobs
+      - name: Download Artifact: Databricks-Init-Scripts
+      - name: Download Artifact: Deployment Scripts
+      - name: Login via Az module
+      - name: Deploy ARM Template (Databricks)
+      - name: Deploy ARM Template (KeyVault)
+      - name: Download KeyVault Secrets
+      - name: Deploy Databricks Init Scripts
+      - name: Deploy Databricks Clusters
+      - name: Deploy Databricks Notebooks
+      - name: Deploy Databricks Jobs
+
+  QA:
+    needs: Dev
+    runs-on: ubuntu-latest
+    environment:
+      name: Staging
+    env:
+      resourceGroupName:
+      databricksWorkspaceName:
+      keyVaultName:
+      NotebookDeploymentPath:
+      GitNotebookPath:
+    steps:
+      - name: Display Environment Variable
+      - name: Download Artifact: ARM-Templates
+      - name: Download Artifact: Databricks-Clusters
+      - name: Download Artifact: Databricks-Notebooks
+      - name: Download Artifact: Databricks-Jobs
+      - name: Download Artifact: Databricks-Init-Scripts
+      - name: Download Artifact: Deployment Scripts
+      - name: Login via Az module
+      - name: Deploy ARM Template (Databricks)
+      - name: Deploy ARM Template (KeyVault)
+      - name: Download KeyVault Secrets
+      - name: Deploy Databricks Init Scripts
+      - name: Deploy Databricks Clusters
+      - name: Deploy Databricks Notebooks
+      - name: Deploy Databricks Jobs
+
+  Prod:
+    needs: QA
+    runs-on: ubuntu-latest
+    environment:
+      name: Prod
+    env:
+      resourceGroupName:
+      databricksWorkspaceName:
+      keyVaultName:
+      NotebookDeploymentPath:
+      GitNotebookPath:
+    steps:
+      - name: Display Environment Variable
+      - name: Download Artifact: ARM-Templates
+      - name: Download Artifact: Databricks-Clusters
+      - name: Download Artifact: Databricks-Notebooks
+      - name: Download Artifact: Databricks-Jobs
+      - name: Download Artifact: Databricks-Init-Scripts
+      - name: Download Artifact: Deployment Scripts
+      - name: Login via Az module
+      - name: Deploy ARM Template (Databricks)
+      - name: Deploy ARM Template (KeyVault)
+      - name: Download KeyVault Secrets
+      - name: Deploy Databricks Init Scripts
+      - name: Deploy Databricks Clusters
+      - name: Deploy Databricks Notebooks
+      - name: Deploy Databricks Jobs
